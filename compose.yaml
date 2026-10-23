@@ -1,0 +1,139 @@
+services:
+    shard_europe:
+        image: mysql:8.4
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_ROOT_HOST: "%"
+        ports:
+            - "127.0.0.1:19409:3306"
+        volumes:
+            - ./db/europe/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+            - ./db/europe/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+        healthcheck:
+            test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot --silent"]
+            interval: 3s
+            timeout: 3s
+            retries: 30
+            start_period: 20s
+
+    shard_north_america:
+        image: mysql:8.4
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_ROOT_HOST: "%"
+        ports:
+            - "127.0.0.1:19410:3306"
+        volumes:
+            - ./db/north_america/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+            - ./db/north_america/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+        healthcheck:
+            test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot --silent"]
+            interval: 3s
+            timeout: 3s
+            retries: 30
+            start_period: 20s
+
+    shard_asia:
+        image: mysql:8.4
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_ROOT_HOST: "%"
+        ports:
+            - "127.0.0.1:19411:3306"
+        volumes:
+            - ./db/asia/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+            - ./db/asia/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+        healthcheck:
+            test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot --silent"]
+            interval: 3s
+            timeout: 3s
+            retries: 30
+            start_period: 20s
+
+    warehouse:
+        image: mysql:8.4
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_ROOT_HOST: "%"
+        ports:
+            - "127.0.0.1:19412:3306"
+        volumes:
+            - ./db/warehouse/01-user.sql:/docker-entrypoint-initdb.d/01-user.sql:ro
+        healthcheck:
+            test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot --silent"]
+            interval: 3s
+            timeout: 3s
+            retries: 30
+            start_period: 20s
+
+    phpmyadmin_europe:
+        image: phpmyadmin:5.2.3-apache
+        entrypoint:
+            - /bin/bash
+            - -c
+            - |
+              echo "session.name=PHPSESSID_EUROPE" > /usr/local/etc/php/conf.d/session-name.ini
+              exec /docker-entrypoint.sh apache2-foreground
+        ports:
+            - "127.0.0.1:18409:80"
+        environment:
+            PMA_HOST: shard_europe
+            PMA_VERBOSE: Europe
+            PMA_ABSOLUTE_URI: "http://127.0.0.1:18409/"
+        depends_on:
+            shard_europe:
+                condition: service_healthy
+
+    phpmyadmin_north_america:
+        image: phpmyadmin:5.2.3-apache
+        entrypoint:
+            - /bin/bash
+            - -c
+            - |
+              echo "session.name=PHPSESSID_NORTH_AMERICA" > /usr/local/etc/php/conf.d/session-name.ini
+              exec /docker-entrypoint.sh apache2-foreground
+        ports:
+            - "127.0.0.2:18410:80"
+        environment:
+            PMA_HOST: shard_north_america
+            PMA_VERBOSE: North America
+            PMA_ABSOLUTE_URI: "http://127.0.0.2:18410/"
+        depends_on:
+            shard_north_america:
+                condition: service_healthy
+
+    phpmyadmin_asia:
+        image: phpmyadmin:5.2.3-apache
+        entrypoint:
+            - /bin/bash
+            - -c
+            - |
+              echo "session.name=PHPSESSID_ASIA" > /usr/local/etc/php/conf.d/session-name.ini
+              exec /docker-entrypoint.sh apache2-foreground
+        ports:
+            - "127.0.0.3:18411:80"
+        environment:
+            PMA_HOST: shard_asia
+            PMA_VERBOSE: Asia
+            PMA_ABSOLUTE_URI: "http://127.0.0.3:18411/"
+        depends_on:
+            shard_asia:
+                condition: service_healthy
+
+    phpmyadmin_warehouse:
+        image: phpmyadmin:5.2.3-apache
+        entrypoint:
+            - /bin/bash
+            - -c
+            - |
+              echo "session.name=PHPSESSID_WAREHOUSE" > /usr/local/etc/php/conf.d/session-name.ini
+              exec /docker-entrypoint.sh apache2-foreground
+        ports:
+            - "127.0.0.4:18415:80"
+        environment:
+            PMA_HOST: warehouse
+            PMA_VERBOSE: Data Warehouse
+            PMA_ABSOLUTE_URI: "http://127.0.0.4:18415/"
+        depends_on:
+            warehouse:
+                condition: service_healthy
